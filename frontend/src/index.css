@@ -1,0 +1,42 @@
+:root {
+  /* Steam Theme Colors */
+  --steam-bg-dark: #171a21;
+  --steam-bg-medium: #1b2838;
+  --steam-bg-light: #2a475e;
+  --steam-text-primary: #c7d5e0;
+  --steam-text-secondary: #8f98a0;
+  --steam-accent-blue: #66c0f4;
+  --steam-accent-green: #a4d007;
+  /* Not used much for claiming but good for 'Free' */
+  --steam-header-gradient: linear-gradient(to right, #171a21, #2a475e);
+  --steam-card-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Motiva Sans', 'Inter', sans-serif;
+  background-color: var(--steam-bg-dark);
+  color: var(--steam-text-primary);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar to match Steam */
+::-webkit-scrollbar {
+  width: 10px;
+  background: var(--steam-bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3d4450;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #67707b;
+}
+
+button {
+  font-family: inherit;
+}
