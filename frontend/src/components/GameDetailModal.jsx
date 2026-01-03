@@ -1,15 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import axios from 'axios';
 import './GameDetailModal.css';
 
 const GameDetailModal = ({ isOpen, onClose, game, t, onClaim, language }) => {
+    const [media, setMedia] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [selectedMedia, setSelectedMedia] = useState(null); // For video/screenshot viewer
+    const [mediaType, setMediaType] = useState('image'); // 'image' or 'video'
+
+    useEffect(() => {
+        if (isOpen && game && game.appId) {
+            setLoading(true);
+            axios.get(`http://localhost:3001/api/game-details/${game.appId}`)
+                .then(response => {
+                    setMedia(response.data);
+                    // Set first media as selected
+                    if (response.data.movies && response.data.movies.length > 0) {
+                        setSelectedMedia(response.data.movies[0]);
+                        setMediaType('video');
+                    } else if (response.data.screenshots && response.data.screenshots.length > 0) {
+                        setSelectedMedia(response.data.screenshots[0]);
+                        setMediaType('image');
+                    }
+                })
+                .catch(err => console.error('Failed to load media:', err))
+                .finally(() => setLoading(false));
+        }
+    }, [isOpen, game]);
+
     if (!isOpen || !game) return null;
 
     const getScoreColor = (score) => {
         if (!score) return '#94a3b8';
-        if (score >= 80) return '#fbbf24'; // Gold
-        if (score >= 60) return '#f59e0b'; // Orange
-        return '#94a3b8'; // Grey
+        if (score >= 80) return '#fbbf24';
+        if (score >= 60) return '#f59e0b';
+        return '#94a3b8';
     };
 
     const formatDate = (dateString) => {
@@ -45,17 +71,70 @@ const GameDetailModal = ({ isOpen, onClose, game, t, onClaim, language }) => {
     return ReactDOM.createPortal(
         <div className="game-detail-modal-overlay" onClick={onClose}>
             <div className="game-detail-modal-content" onClick={e => e.stopPropagation()}>
-                {/* Header Image */}
-                <div className="game-detail-header">
-                    {imageUrl ? (
-                        <img src={imageUrl} alt={game.title} className="game-detail-banner" />
+                {/* Media Section (Video or Screenshot) */}
+                <div className="game-detail-media-section">
+                    {selectedMedia && mediaType === 'video' ? (
+                        <video
+                            key={selectedMedia.id}
+                            className="game-detail-video"
+                            controls
+                            autoPlay
+                            muted
+                            poster={selectedMedia.thumbnail}
+                        >
+                            <source src={selectedMedia.webm} type="video/webm" />
+                            <source src={selectedMedia.mp4} type="video/mp4" />
+                        </video>
+                    ) : selectedMedia && mediaType === 'image' ? (
+                        <img
+                            src={selectedMedia.full}
+                            alt="Screenshot"
+                            className="game-detail-screenshot"
+                        />
                     ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4rem', background: '#334155' }}>
-                            🎮
+                        <div className="game-detail-header">
+                            {imageUrl ? (
+                                <img src={imageUrl} alt={game.title} className="game-detail-banner" />
+                            ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '4rem', background: '#334155' }}>
+                                    🎮
+                                </div>
+                            )}
                         </div>
                     )}
                     <button className="game-detail-close-btn" onClick={onClose}>&times;</button>
                 </div>
+
+                {/* Media Thumbnails */}
+                {media && (media.movies?.length > 0 || media.screenshots?.length > 0) && (
+                    <div className="media-thumbnails">
+                        {media.movies?.map(movie => (
+                            <div
+                                key={movie.id}
+                                className={`media-thumb ${selectedMedia?.id === movie.id && mediaType === 'video' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setSelectedMedia(movie);
+                                    setMediaType('video');
+                                }}
+                            >
+                                <img src={movie.thumbnail} alt={movie.name} />
+                                <div className="play-icon">▶</div>
+                            </div>
+                        ))}
+                        {media.screenshots?.map(screenshot => (
+                            <div
+                                key={screenshot.id}
+                                className={`media-thumb ${selectedMedia?.id === screenshot.id && mediaType === 'image' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setSelectedMedia(screenshot);
+                                    setMediaType('image');
+                                }}
+                            >
+                                <img src={screenshot.thumbnail} alt="Screenshot" />
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Body */}
                 <div className="game-detail-body">

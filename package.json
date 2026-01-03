@@ -14,7 +14,8 @@
         "build:portable": "npm run build && npx electron-builder --win portable",
         "build:installer": "npm run build && npx electron-builder --win nsis",
         "package": "npm run build && npx electron-packager . \"Steam Free Games\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=electron/icon.ico --prune=true",
-        "start": "npx electron ."
+        "start": "npx electron .",
+        "start:prod": "set NODE_ENV=production&& npx electron ."
     },
     "build": {
         "appId": "com.steamfreegames.app",

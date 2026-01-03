@@ -218,6 +218,26 @@ npm run build:portable
 # Her ikisi
 npm run build:win
 
-# Electron'u doğrudan çalıştır
+# Electron'u doğrudan çalıştır (development mode)
 npm start
+
+# Production modunda çalıştır (installer olmadan test için)
+npm run start:prod
 ```
+
+## Production vs Development Mode
+
+### Development Mode
+- `npm run dev` komutuyla çalışır
+- Frontend development server'a (`http://localhost:5173`) bağlanır
+- Hot reload özelliği vardır
+- DevTools otomatik açılır
+- **Uyarı:** Bilgisayar başlangıcında development server çalışmadığı için boş ekran açılır
+
+### Production Mode
+- `npm run start:prod` komutuyla çalışır
+- Build edilmiş frontend dosyalarını (`frontend/dist`) kullanır
+- DevTools kapalıdır
+- Daha hızlı başlar
+- **Önerilen:** Installer kullanarak kurulum yapın, otomatik olarak production modunda çalışır
+

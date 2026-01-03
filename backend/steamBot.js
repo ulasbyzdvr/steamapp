@@ -337,46 +337,55 @@ class SteamBot {
 
                 if (userData && userData.rgOwnedApps) {
                     library.ids = userData.rgOwnedApps;
+                    console.log(`✅ Userdata API: ${library.ids.length} AppIDs found.`);
                 }
-            } catch (e) { console.log('Userdata API failed or timed out, continuing...'); }
+            } catch (e) {
+                console.log('⚠️ Userdata API failed or timed out:', e.message);
+            }
 
             console.log('Fetching game names from Licenses page...');
-            await this.page.goto('https://store.steampowered.com/account/licenses/', {
-                waitUntil: 'domcontentloaded',
-                timeout: 30000
-            });
-
-            const licenseData = await this.page.evaluate(() => {
-                const rows = document.querySelectorAll('.account_table tr');
-                const ids = [];
-                const names = [];
-
-                rows.forEach(row => {
-                    const img = row.querySelector('img');
-                    if (img && img.src) {
-                        const match = img.src.match(/\/apps\/(\d+)\//);
-                        if (match) ids.push(parseInt(match[1]));
-                    }
-
-                    const cols = row.querySelectorAll('td');
-                    if (cols.length > 1) {
-                        const name = cols[1].innerText.trim();
-                        if (name && name.length > 1 && !name.includes('Remove')) {
-                            names.push(name);
-                        }
-                    }
+            try {
+                await this.page.goto('https://store.steampowered.com/account/licenses/', {
+                    waitUntil: 'domcontentloaded',
+                    timeout: 60000 // Increased to 60 seconds
                 });
-                return { ids, names };
-            });
 
-            library.ids = [...new Set([...library.ids, ...licenseData.ids])];
-            library.names = licenseData.names;
+                const licenseData = await this.page.evaluate(() => {
+                    const rows = document.querySelectorAll('.account_table tr');
+                    const ids = [];
+                    const names = [];
 
-            console.log(`Library summary: ${library.ids.length} AppIDs, ${library.names.length} Titles found.`);
+                    rows.forEach(row => {
+                        const img = row.querySelector('img');
+                        if (img && img.src) {
+                            const match = img.src.match(/\/apps\/(\d+)\//);
+                            if (match) ids.push(parseInt(match[1]));
+                        }
+
+                        const cols = row.querySelectorAll('td');
+                        if (cols.length > 1) {
+                            const name = cols[1].innerText.trim();
+                            if (name && name.length > 1 && !name.includes('Remove')) {
+                                names.push(name);
+                            }
+                        }
+                    });
+                    return { ids, names };
+                });
+
+                library.ids = [...new Set([...library.ids, ...licenseData.ids])];
+                library.names = licenseData.names;
+                console.log(`✅ Licenses page: ${licenseData.ids.length} AppIDs, ${licenseData.names.length} Titles found.`);
+            } catch (e) {
+                console.log('⚠️ Licenses page failed or timed out:', e.message);
+                console.log('Continuing with Userdata API results only...');
+            }
+
+            console.log(`📚 Library summary: ${library.ids.length} AppIDs, ${library.names.length} Titles found.`);
             return library;
 
         } catch (error) {
-            console.error('Error in getOwnedGameTitles:', error.message);
+            console.error('❌ Error in getOwnedGameTitles:', error.message);
             return library;
         }
     }

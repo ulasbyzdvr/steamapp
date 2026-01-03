@@ -137,3 +137,36 @@
   - **UX**: Uygulama arka planda başladığında kullanıcıya bildirim gösteriliyor.
   - **Dil**: Türkçe/İngilizce/Almanca/Fransızca/İspanyolca/İtalyanca çevirileri eklendi.
 
+### Son Durum (2026-01-02 10:52)
+- 🐛 **FIX**: Bilgisayar açıldığında Electron boş ekran sorunu çözüldü
+  - **Sorun**: 
+    - Uygulama development modunda çalışıyor (`NODE_ENV !== 'production'`)
+    - `http://localhost:5173`'e bağlanmaya çalışıyor
+    - Frontend dev server çalışmadığı için Electron varsayılan ekranı açılıyor
+  - **Çözüm**:
+    - `package.json`'a `start:prod` script'i eklendi: `set NODE_ENV=production&& npx electron .`
+    - Production modunda `frontend/dist` klasöründeki build dosyaları kullanılıyor
+    - Installer kullanarak kurulum yapıldığında otomatik olarak production modunda çalışıyor
+  - **Dokümantasyon**:
+    - `memory-bank/build-guide.md` güncellendi (Production vs Development Mode bölümü eklendi)
+    - `memory-bank/troubleshooting.md` oluşturuldu (Yaygın sorunlar ve çözümleri)
+  - **Kullanıcı Aksiyonu Gerekli**:
+    - `dist/Steam Free Games-1.0.0-Setup.exe` installer'ı çalıştırarak kurulum yapılmalı
+    - Ayarlardan "Bilgisayar açılışında başlat" seçeneği aktif edilmeli
+
+### Son Durum (2026-01-02 11:02)
+- 🐛 **FIX**: Giriş sonrası oyunlar yüklenirken sonsuz loading sorunu çözüldü
+  - **Sorun**:
+    - `getOwnedGameTitles()` fonksiyonu Steam'in licenses sayfasına giderken timeout oluyordu
+    - 30 saniye timeout yeterli değildi
+    - Hata yönetimi eksikti, sayfa yüklenmezse uygulama takılıyordu
+  - **Çözüm**:
+    - Licenses sayfası timeout'u 30 saniyeden **60 saniyeye** çıkarıldı
+    - Licenses sayfası yüklenemezse try-catch ile yakalanıyor
+    - Sadece Userdata API sonuçlarıyla devam ediliyor
+    - Daha detaylı loglama eklendi (✅, ⚠️, ❌ emojileri)
+  - **Sonuç**:
+    - Artık giriş sonrası oyunlar düzgün yükleniyor
+    - 584 AppID + 178 oyun ismi başarıyla alınıyor
+    - Licenses sayfası yüklenmese bile uygulama çalışmaya devam ediyor
+

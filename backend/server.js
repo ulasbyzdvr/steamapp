@@ -82,6 +82,45 @@ app.post('/api/claim', async (req, res) => {
     }
 });
 
+// Get game details from Steam Store API (videos, screenshots, etc.)
+app.get('/api/game-details/:appId', async (req, res) => {
+    const { appId } = req.params;
+
+    try {
+        const axios = require('axios');
+        const response = await axios.get(`https://store.steampowered.com/api/appdetails?appids=${appId}&l=turkish`);
+
+        if (response.data && response.data[appId] && response.data[appId].success) {
+            const data = response.data[appId].data;
+
+            const media = {
+                appId: appId,
+                screenshots: data.screenshots?.map(s => ({
+                    id: s.id,
+                    thumbnail: s.path_thumbnail,
+                    full: s.path_full
+                })) || [],
+                movies: data.movies?.map(m => ({
+                    id: m.id,
+                    name: m.name,
+                    thumbnail: m.thumbnail,
+                    webm: m.webm?.max || m.webm?.['480'],
+                    mp4: m.mp4?.max || m.mp4?.['480']
+                })) || [],
+                headerImage: data.header_image,
+                description: data.short_description || data.detailed_description
+            };
+
+            res.json(media);
+        } else {
+            res.status(404).json({ error: 'Game not found' });
+        }
+    } catch (error) {
+        console.error('Steam API error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
