@@ -170,3 +170,207 @@
     - 584 AppID + 178 oyun ismi başarıyla alınıyor
     - Licenses sayfası yüklenmese bile uygulama çalışmaya devam ediyor
 
+### Son Durum (2026-01-03 23:34)
+- ✨ **YENİ UYGULAMA**: Terminal tabanlı CLI uygulaması eklendi
+  - **Özellikler**:
+    - Arayüzsüz, tamamen terminal üzerinden çalışan yan uygulama
+    - İnteraktif menü sistemi (8 farklı seçenek)
+    - ANSI renk kodları ile renkli ve kullanıcı dostu çıktılar
+    - Mevcut backend modüllerini kullanıyor (SteamBot, ITAD Service)
+    - Tüm Electron uygulaması özelliklerini destekliyor
+  - **Menü Seçenekleri**:
+    1. Steam'e Giriş Yap (Puppeteer ile tarayıcı açılır)
+    2. Giriş Durumunu Kontrol Et
+    3. Ücretsiz Oyunları Listele (ITAD API)
+    4. Kütüphanemi Görüntüle
+    5. Oyun Talep Et (Seçili oyunlar)
+    6. Tüm Ücretsiz Oyunları Talep Et (Otomatik filtreleme)
+    7. Kullanıcı Bilgilerimi Göster
+    8. Çıkış Yap (Logout)
+    0. Programdan Çık
+  - **Dosyalar**:
+    - `cli/cli.js` - Ana CLI uygulaması
+    - `cli/package.json` - CLI package konfigürasyonu
+    - `cli/README.md` - Detaylı kullanım kılavuzu
+    - `cli/start-cli.bat` - Windows için hızlı başlatma scripti
+  - **Kullanım**: 
+    - `cd cli` → `node cli.js` veya `start-cli.bat` çalıştır
+  - **Avantajlar**:
+    - Hafif ve hızlı (GUI yok)
+    - Uzaktan sunucularda çalıştırılabilir
+    - Script'lerle otomasyona entegre edilebilir
+    - Düşük kaynak kullanımı
+  - **Teknik Düzeltme**:
+    - CLI uygulaması `cli/` klasöründen çalıştığı için `.env` dosyasını bulamıyordu
+    - `cli.js`: `dotenv.config({ path: '../backend/.env' })` ile düzeltildi
+    - `itadService.js`: `dotenv.config({ path: __dirname + '/.env' })` ile düzeltildi
+    - Artık CLI uygulaması ITAD API key'i doğru şekilde yükleyebiliyor
+  - **Masaüstü Kullanımı**:
+    - `Steam-CLI.bat` - Geliştirilmiş başlatma scripti (Node.js kontrolü ile)
+    - `Masaüstüne-Kısayol-Oluştur.ps1` - Otomatik kısayol oluşturma scripti
+    - `MASAÜSTÜ-KULLANIM.md` - Detaylı masaüstü kullanım kılavuzu
+    - Masaüstüne "Steam CLI" kısayolu başarıyla oluşturuldu
+    - Artık masaüstünden çift tıklayarak CLI uygulaması başlatılabilir
+  - **Kullanıcı Deneyimi İyileştirmesi**:
+    - SteamBot'a `silent` parametresi eklendi (gereksiz logları gizler)
+    - CLI uygulaması `new SteamBot(true)` ile silent mode'da çalışıyor
+    - itadService.js'deki gereksiz console.log'lar kaldırıldı
+    - Artık sadece kullanıcıya yönelik mesajlar gösteriliyor
+    - Teknik debug mesajları (cookie yükleme, browser başlatma vb.) gizlendi
+  - **İlk Açılış İyileştirmesi**:
+    - İlk açılışta "Devam etmek için Enter tuşuna basın..." mesajı kaldırıldı
+    - Uygulama başlatıldığında direkt ana menü gösteriliyor
+    - Daha hızlı ve akıcı kullanıcı deneyimi
+  - **Dinamik Menü Sistemi**:
+    - Giriş yapıldıysa "Steam'e Giriş Yap" seçeneği gösterilmiyor
+    - "Giriş Durumunu Kontrol Et" seçeneği kaldırıldı (gereksiz)
+    - "Kullanıcı Bilgilerimi Göster" seçeneği kaldırıldı
+    - Kullanıcı adı direkt ana sayfada gösteriliyor
+    - Logout butonu kırmızı renkte vurgulanıyor
+    - Avatar gösterimi kaldırıldı (gereksiz)
+    - Menü numaraları dinamik olarak ayarlanıyor
+    - Daha temiz ve kullanıcı dostu arayüz
+  - **Terminal Temizleme ve Otomatik Listeleme**:
+    - Her sayfa geçişinde terminal otomatik temizleniyor (console.clear())
+    - Artık ekranda gereksiz satırlar birikmiyor
+    - "Oyun Talep Et" seçeneği otomatik olarak ücretsiz oyunları listeliyor
+    - Kullanıcının önce "Ücretsiz Oyunları Listele" menüsüne girmesine gerek yok
+    - Kütüphane görüntüleme'deki tüm console.log'lar silent mode'a alındı
+    - getOwnedGameTitles fonksiyonundaki debug mesajları gizlendi
+    - Daha temiz ve profesyonel kullanıcı deneyimi
+  - **Oyun Talep İyileştirmeleri**:
+    - Talep edilecek oyun sayısı gösteriliyor ("Talep edilebilir: X oyun")
+    - Eğer tüm oyunlar zaten kütüphanede ise numara sorulmuyor
+    - "Tüm ücretsiz oyunlar zaten kütüphanenizde!" mesajı gösteriliyor
+    - 0 girilirse işlem iptal ediliyor ve ana menüye dönülüyor
+    - Prompt'ta "0=İptal" bilgisi eklendi
+    - Daha akıllı ve kullanıcı dostu oyun seçimi
+  - **Dil Sistemi ve Ayarlar Menüsü** (2026-01-04 06:16):
+    - Çok dilli destek sistemi eklendi (Türkçe ve İngilizce)
+    - `translations.js` dosyası oluşturuldu - tüm metinler için çeviri sistemi
+    - Ayarlar menüsü eklendi (⚙️ simgesi ile)
+    - Dil seçimi: Türkçe 🇹🇷 ve English 🇬🇧
+    - Dil ayarı `language.json` dosyasında saklanıyor
+    - Dil değiştirildiğinde uygulama otomatik yeniden başlıyor
+    - Varsayılan dil: Türkçe
+    - İleride tüm metinler çeviri sistemi ile değiştirilecek
+    - Şu an için ayarlar menüsü çalışıyor, tam çeviri sonraki adımda
+  - **Ana Menü Çeviri Sistemi Aktif** (2026-01-04 08:54):
+    - Ana menü artık çeviri sistemi kullanıyor (`this.t`)
+    - Dil değiştirildiğinde menü metinleri değişiyor
+    - Türkçe ve İngilizce tam destek
+    - Ayarlar menüsüne ⚙️ emoji eklendi
+    - Çeviri edilen metinler:
+      - Uygulama başlığı
+      - Kullanıcı/Durum etiketleri
+      - Tüm menü seçenekleri
+      - "Seçiminiz" prompt'u
+    - Dil değişimi artık görünür şekilde çalışıyor
+  - **Başlangıç Ekranı Çeviri** (2026-01-04 15:44):
+    - Başlangıç banner'ı dinamik olarak dil ayarına göre gösteriliyor
+    - Başlangıç mesajları çeviri sistemi kullanıyor
+    - Türkçe: "Bot başlatılıyor...", "Bot hazır!", "Giriş durumu kontrol ediliyor..."
+    - English: "Starting bot...", "Bot ready!", "Checking login status..."
+    - Banner metni otomatik olarak ortalanıyor
+    - Tüm başlangıç akışı artık çok dilli
+  - **Tam Çeviri Sistemi ve İyileştirmeler** (2026-01-04 15:48):
+    - **Terminal Başlığı:** Dile göre otomatik ayarlanıyor (`process.stdout.write`)
+    - **Logout Metni:** "Çıkış Yap" → "Steam'den Çıkış Yap"
+    - **Kütüphane Paging:**
+      - Sayfa başına 20 oyun gösteriliyor
+      - n = Sonraki sayfa, p = Önceki sayfa, 0 = Geri dön
+      - Toplam sayfa sayısı gösteriliyor
+      - Tüm oyunlar arasında gezinme
+    - **Tüm Alt Sayfalar Çeviri Sistemi:**
+      - Login sayfası (🔐)
+      - Ücretsiz oyunlar listesi (🎁)
+      - Kütüphane (📚)
+      - Logout (🚪)
+      - Tüm mesajlar çeviri sistemi kullanıyor
+    - **İngilizce Destek:** Logout'ta hem 'e' hem 'y' kabul ediliyor
+    - Artık uygulama tamamen çok dilli!
+  - **Tam Çeviri Sistemi Tamamlandı** (2026-01-04 15:52):
+    - **Tüm Sayfalar Çevrildi:**
+      - ✅ Ana Menü
+      - ✅ Başlangıç Ekranı
+      - ✅ Login
+      - ✅ Ücretsiz Oyunlar Listesi (tüm metinler)
+      - ✅ Kütüphane (paging dahil)
+      - ✅ Oyun Talep Et (tüm mesajlar)
+      - ✅ Tüm Oyunları Talep Et (tüm mesajlar)
+      - ✅ Ayarlar
+      - ✅ Logout
+    - **Bayrak Emoji'leri Kaldırıldı:**
+      - Terminal'de düzgün görünmüyordu
+      - Artık sadece "Türkçe" ve "English"
+    - **Dinamik Locale:**
+      - Tarih formatı dile göre değişiyor (tr-TR / en-US)
+    - **Çift Dil Desteği:**
+      - Logout'ta hem 'e' hem 'y' kabul ediliyor
+    - Artık uygulama %100 çok dilli!
+  - **Son Çeviri Düzeltmeleri** (2026-01-04 16:22):
+    - **Kütüphane Oyun Listesi Hatası Düzeltildi:**
+      - Oyunlar gösterilmiyordu (kod eksikti)
+      - `forEach` döngüsü eklendi
+      - Artık tüm oyunlar paging ile gösteriliyor
+    - **Exit Ekranı Çevrildi:**
+      - "👋 GÜLE GÜLE!" → `this.t.goodbye.title`
+      - "Program kapatılıyor..." → `this.t.goodbye.closing`
+    - **Pause Mesajı Çevrildi:**
+      - "Devam etmek için Enter tuşuna basın..." → `this.t.general.pressEnter`
+    - **Geçersiz Seçim Çevrildi:**
+      - "Geçersiz seçim!" → `this.t.general.invalidChoice`
+    - Artık tüm kullanıcı mesajları çeviri sistemi kullanıyor!
+
+### Son Durum (2026-01-05 00:15)
+- 🐛 **FIX**: Bilgisayar yeniden başlatıldığında kullanıcı bilgilerinin kaybolması sorunu çözüldü
+  - **Sorun**: 
+    - `cachedUsername` sadece bellekte (RAM) tutuluyordu
+    - Bilgisayar kapatılıp açıldığında cache kayboluyordu
+    - Kullanıcı "Steam User" olarak görünüyordu
+  - **Çözüm**:
+    - `user-data.json` dosyası eklendi (cookies.json'a ek olarak)
+    - `loadUserData()` ve `saveUserData()` fonksiyonları eklendi
+    - Constructor'da otomatik olarak kullanıcı bilgileri yükleniyor
+    - `getSteamUsername()` çağrıldığında kullanıcı adı dosyaya kaydediliyor
+    - Logout'ta hem cookies hem de user-data.json siliniyor
+  - **Sonuç**:
+    - Artık bilgisayar yeniden başlatıldığında kullanıcı bilgileri korunuyor
+    - Kullanıcı adı kalıcı olarak saklanıyor
+    - "Steam User" sorunu tamamen çözüldü
+
+### Son Durum (2026-01-05 00:45)
+- 🔧 **IMPROVEMENT**: Oyun linkleri ITAD'den Steam'e çevrildi
+  - **Değişiklik**:
+    - Oyunlar artık ITAD redirect linklerini değil, direkt Steam Store URL'lerini kullanıyor
+    - Format: `https://store.steampowered.com/app/{appId}/`
+  - **Güncellenen Dosyalar**:
+    - `backend/itadService.js`: appId varsa Steam URL'si oluşturuluyor
+    - `cli/cli.js`: `endDate` yerine `expiry` kullanılıyor (Unix timestamp)
+  - **Sonuç**:
+    - Kullanıcılar direkt Steam sayfasına yönlendiriliyor
+    - Daha hızlı ve temiz URL'ler
+    - Claim işlemleri için doğru linkler
+
+### Son Durum (2026-01-16 12:15)
+- 🐛 **CRITICAL FIX**: Claim işlemi öncesi Steam oturum doğrulaması eklendi
+  - **Sorun**: 
+    - Bilgisayar yeniden başlatıldığında Steam'e giriş yapmış görünüyordu
+    - Oyun claim ederken "başarılı" mesajı gösteriliyordu
+    - **AMA oyunlar gerçekten Steam hesabına eklenmiyordu**
+  - **Kök Neden**:
+    - Cookie'ler dosyada saklandığı için yeniden başlatmada hala geçerli görünüyordu
+    - `processGames` fonksiyonu browser restart sonrası oturum kontrolü yapmıyordu
+    - Cookie'ler set edilse bile Steam oturumu aktif değildi
+    - Claim işlemi başarılı gibi gösteriliyordu ama Steam API isteği reddediyordu
+  - **Çözüm**:
+    - `backend/steamBot.js` → `processGames` fonksiyonuna kritik doğrulama eklendi
+    - Browser restart edildikten SONRA `checkLogin()` ile gerçek oturum kontrolü yapılıyor
+    - Eğer oturum geçersizse işlem başlamadan kullanıcı uyarılıyor
+    - "Steam oturumu geçersiz. Lütfen çıkış yapıp tekrar giriş yapın" mesajı gösteriliyor
+  - **Etki**:
+    - ✅ Artık her claim işlemi öncesi oturum doğrulanıyor
+    - ✅ Yanlış "başarılı" mesajları önleniyor
+    - ✅ Kullanıcı oturum geçersizse hemen bilgilendiriliyor
+    - ✅ CLI, Electron ve tüm uygulamalar bu düzeltmeden yararlanıyor
+

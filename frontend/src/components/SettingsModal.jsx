@@ -9,6 +9,7 @@ const SettingsModal = ({ isOpen, onClose, t, steamUsername, steamAvatar, logout,
     const [scheduledClaimEnabled, setScheduledClaimEnabled] = useState(false);
     const [claimTime, setClaimTime] = useState("12:00");
     const [notifications, setNotifications] = useState(true);
+    const [checkNewGames, setCheckNewGames] = useState(false);
     const [isElectron, setIsElectron] = useState(false);
 
     useEffect(() => {
@@ -24,6 +25,7 @@ const SettingsModal = ({ isOpen, onClose, t, steamUsername, steamAvatar, logout,
                 setClaimTime(settings.time);
             });
             window.electronAPI.getNotificationsStatus().then(status => setNotifications(status));
+            window.electronAPI.getCheckNewGamesStatus().then(status => setCheckNewGames(status));
         }
     }, [isOpen]);
 
@@ -100,6 +102,19 @@ const SettingsModal = ({ isOpen, onClose, t, steamUsername, steamAvatar, logout,
             } catch (err) {
                 console.error('Failed to update notifications:', err);
                 setNotifications(!newValue);
+            }
+        }
+    };
+
+    const handleCheckNewGamesChange = async (e) => {
+        const newValue = e.target.checked;
+        setCheckNewGames(newValue);
+        if (window.electronAPI) {
+            try {
+                await window.electronAPI.toggleCheckNewGames(newValue);
+            } catch (err) {
+                console.error('Failed to update check new games:', err);
+                setCheckNewGames(!newValue);
             }
         }
     };
@@ -282,7 +297,7 @@ const SettingsModal = ({ isOpen, onClose, t, steamUsername, steamAvatar, logout,
                         </div>
 
                         {/* Notifications */}
-                        <div className="settings-item">
+                        <div className="settings-item" style={{ marginBottom: '16px' }}>
                             <div>
                                 <div className="settings-label">{t('notifications')}</div>
                                 <div className="settings-description">
@@ -296,6 +311,29 @@ const SettingsModal = ({ isOpen, onClose, t, steamUsername, steamAvatar, logout,
                                         type="checkbox"
                                         checked={notifications}
                                         onChange={handleNotificationsChange}
+                                    />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                            ) : (
+                                <span className="text-sm text-gray-500">Not Available (Web)</span>
+                            )}
+                        </div>
+
+                        {/* Check New Games on Startup */}
+                        <div className="settings-item">
+                            <div>
+                                <div className="settings-label">{t('check_new_games')}</div>
+                                <div className="settings-description">
+                                    {t('check_new_games_desc')}
+                                </div>
+                            </div>
+
+                            {isElectron ? (
+                                <label className="toggle-switch">
+                                    <input
+                                        type="checkbox"
+                                        checked={checkNewGames}
+                                        onChange={handleCheckNewGamesChange}
                                     />
                                     <span className="toggle-slider"></span>
                                 </label>

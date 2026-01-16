@@ -618,7 +618,7 @@ function loadConfig() {
     } catch (e) {
         console.error('Error loading config:', e);
     }
-    return { autoClaim: false, scheduledClaim: false, claimTime: "12:00", startMinimized: false, notifications: true };
+    return { autoClaim: false, scheduledClaim: false, claimTime: "12:00", startMinimized: false, notifications: true, checkNewGames: false };
 }
 
 function saveConfig(config) {
@@ -655,6 +655,83 @@ function setupScheduler() {
             }, 61000);
         }
     }, 10000); // Check every 10 seconds
+}
+
+// Check for new free games (notification only, no auto-claim)
+async function checkNewGamesRoutine() {
+    console.log('[Check New Games] Checking for new games...');
+    const config = loadConfig();
+
+    if (!config.checkNewGames) {
+        console.log('[Check New Games] Disabled.');
+        return;
+    }
+
+    // Wait for backend/bot init
+    await new Promise(r => setTimeout(r, 5000));
+
+    if (!steamBot.checkLoginSimple()) {
+        console.log('[Check New Games] Not logged in.');
+        return;
+    }
+
+    try {
+        const freeGames = await getFreeSteamGames();
+        if (freeGames.length === 0) {
+            console.log('[Check New Games] No free games found.');
+            return;
+        }
+
+        const ownedLibrary = await steamBot.getOwnedGameTitles();
+        const ownedIds = ownedLibrary.ids || [];
+        const ownedNames = (ownedLibrary.names || []).map(n => n.toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+        const availableGames = freeGames.filter(game => {
+            // First check isOwned flag from API
+            if (game.isOwned) return false;
+
+            const appId = (game.url.match(/\/app\/(\d+)/) || [])[1];
+            const titleNorm = game.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (appId && ownedIds.includes(parseInt(appId))) return false;
+            if (ownedNames.some(owned => owned === titleNorm)) return false;
+            return true;
+        });
+
+        if (availableGames.length > 0) {
+            console.log(`[Check New Games] Found ${availableGames.length} new games`);
+
+            // Show notification with game names
+            const gameNames = availableGames.slice(0, 3).map(g => g.title).join(', ');
+            const moreGames = availableGames.length > 3 ? ` (+${availableGames.length - 3} daha)` : '';
+
+            if (tray && config.notifications) {
+                tray.displayBalloon({
+                    title: `🎮 ${availableGames.length} Yeni Ücretsiz Oyun!`,
+                    content: `${gameNames}${moreGames}\n\nUygulamayı açıp toplamak için tıklayın.`,
+                    iconType: 'info'
+                });
+            }
+
+            // Also send to renderer if window is open
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('new-games-found', {
+                    count: availableGames.length,
+                    games: availableGames
+                });
+            }
+        } else {
+            console.log('[Check New Games] No new games (all owned).');
+            if (tray && config.notifications) {
+                tray.displayBalloon({
+                    title: 'Steam Free Games',
+                    content: 'Yeni ücretsiz oyun yok. Tüm oyunlar zaten kütüphanenizde!',
+                    iconType: 'info'
+                });
+            }
+        }
+    } catch (err) {
+        console.error('[Check New Games] Error:', err);
+    }
 }
 
 async function runAutoClaimRoutine(force = false) {
@@ -773,10 +850,22 @@ ipcMain.handle('toggle-notifications', (event, enable) => {
     return config.notifications;
 });
 
-// Run routine on startup
+// Check New Games on Startup
+ipcMain.handle('get-check-new-games-status', () => loadConfig().checkNewGames || false);
+ipcMain.handle('toggle-check-new-games', (event, enable) => {
+    const config = loadConfig();
+    config.checkNewGames = enable;
+    saveConfig(config);
+    return config.checkNewGames;
+});
+
+// Run routines on startup
 app.whenReady().then(() => {
     if (!gotTheLock) return;
+    // Run auto-claim if enabled
     setTimeout(runAutoClaimRoutine, 3000);
+    // Run new games check if enabled (slightly delayed to avoid conflict)
+    setTimeout(checkNewGamesRoutine, 8000);
     setupScheduler();
 });
 

@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveScheduledClaimSettings: (settings) => ipcRenderer.invoke('save-scheduled-claim-settings', settings),
     getNotificationsStatus: () => ipcRenderer.invoke('get-notifications-status'),
     toggleNotifications: (enable) => ipcRenderer.invoke('toggle-notifications', enable),
+    getCheckNewGamesStatus: () => ipcRenderer.invoke('get-check-new-games-status'),
+    toggleCheckNewGames: (enable) => ipcRenderer.invoke('toggle-check-new-games', enable),
 
     // Event listeners
     onRefreshGames: (callback) => {

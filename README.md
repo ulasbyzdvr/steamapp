@@ -90,3 +90,67 @@ npx vite
 Artık tek tıkla masaüstü uygulamanızı kullanabilirsiniz! 🚀🎮✨
 
 **Keyifli oyunlar!**
+
+---
+
+## 🔄 Son Güncellemeler (2026-01-07)
+
+### ✅ Düzeltilen Sorunlar:
+- **"Invalid Date" hatası düzeltildi**: Geçersiz bitiş tarihleri artık ekrana yazdırılmıyor
+- **Cookie geçerlilik kontrolü eklendi**: Bilgisayar yeniden başlatıldığında expire olmuş cookie'ler otomatik tespit ediliyor
+- **Oturum persistance iyileştirildi**: Steam oturumu artık daha güvenilir şekilde korunuyor
+
+### 🆕 Yeni Özellikler:
+- **🎮 Başlangıçta Yeni Oyun Kontrolü**: Bilgisayar açıldığında yeni ücretsiz oyunları kontrol eder ve bildirim gösterir
+  - Ayarlardan açılıp kapatılabilir
+  - Otomatik toplamaz, sadece bildirim gösterir
+  - Steam'e giriş yapılmışsa çalışır
+
+Detaylı bilgi için: [`memory-bank/recent-fixes.md`](memory-bank/recent-fixes.md)
+
+---
+
+## 💻 Terminal CLI Uygulaması (YENİ!)
+
+### Arayüzsüz Terminal Uygulaması
+
+Grafik arayüzü olmadan, sadece terminal üzerinden çalışan hafif bir alternatif!
+
+#### Başlatma:
+```powershell
+cd cli
+node cli.js
+```
+
+veya Windows için:
+```powershell
+cd cli
+start-cli.bat
+```
+
+#### Özellikler:
+- 🎯 **İnteraktif Menü**: 8 farklı seçenek
+- 🎨 **Renkli Çıktılar**: ANSI renk kodları ile kullanıcı dostu arayüz
+- ⚡ **Hafif ve Hızlı**: GUI olmadan çalışır
+- 🔄 **Tam Özellik**: Electron uygulamasının tüm özellikleri
+- 🤖 **Otomasyon Dostu**: Script'lerle entegre edilebilir
+
+#### Menü Seçenekleri:
+1. Steam'e Giriş Yap
+2. Giriş Durumunu Kontrol Et
+3. Ücretsiz Oyunları Listele
+4. Kütüphanemi Görüntüle
+5. Oyun Talep Et (Seçili)
+6. Tüm Ücretsiz Oyunları Talep Et
+7. Kullanıcı Bilgilerimi Göster
+8. Çıkış Yap
+0. Programdan Çık
+
+#### Kullanım Senaryoları:
+- 🖥️ Uzaktan sunucularda çalıştırma
+- 📜 Batch script'lerle otomasyon
+- 💾 Düşük kaynak kullanımı gereken durumlar
+- ⚙️ CI/CD pipeline entegrasyonu
+
+Detaylı kullanım için: `cli/README.md`
+

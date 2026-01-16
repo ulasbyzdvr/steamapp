@@ -1,5 +1,6 @@
 const axios = require('axios');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const API_KEY = process.env.ITAD_API_KEY;
 const BASE_URL = 'https://api.isthereanydeal.com';
@@ -27,7 +28,7 @@ async function getFreeSteamGames() {
     }
 
     try {
-        console.log('IsThereAnyDeal API üzerinden ücretsiz oyunlar sorgulanıyor...');
+        // IsThereAnyDeal API'den ücretsiz oyunlar getiriliyor
 
         // Deals v2 Endpoint
         const response = await axios.get(`${BASE_URL}/deals/v2`, {
@@ -56,8 +57,7 @@ async function getFreeSteamGames() {
             }
         }
 
-        console.log(`${freeDealIds.length} adet %100 indirimli oyun bulundu.`);
-        console.log('Detaylı bilgiler getiriliyor...');
+        // %100 indirimli oyunlar bulundu
 
         // Şimdi her oyun için detaylı bilgi al (batch olarak)
         const chunkSize = 10; // API rate limit için
@@ -76,7 +76,10 @@ async function getFreeSteamGames() {
                         id: info.id,
                         slug: info.slug,
                         title: info.title || deal.title,
-                        url: deal.url,
+                        // Steam URL'sini kullan (appId varsa)
+                        url: info.appid
+                            ? `https://store.steampowered.com/app/${info.appid}/`
+                            : deal.url,
                         shop: 'Steam',
                         appId: info.appid || null,
 
@@ -126,7 +129,7 @@ async function getFreeSteamGames() {
             }
         }
 
-        console.log(`✅ ${freeGames.length} oyun detaylı bilgileriyle hazır.`);
+        // Oyunlar hazır
         return freeGames;
 
     } catch (error) {

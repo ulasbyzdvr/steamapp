@@ -54,7 +54,9 @@ export const translations = {
         offer_ends: "Offer Ends",
         user_tags: "User Tags",
         notifications: "Desktop Notifications",
-        notifications_desc: "Show desktop notifications for auto-claim events."
+        notifications_desc: "Show desktop notifications for auto-claim events.",
+        check_new_games: "Check for New Games on Startup",
+        check_new_games_desc: "Check for new free games when the app starts and show a notification (does not auto-claim)."
     },
 
     tr: {
@@ -112,7 +114,9 @@ export const translations = {
         offer_ends: "Teklif Bitişi",
         user_tags: "Kullanıcı Etiketleri",
         notifications: "Masaüstü Bildirimleri",
-        notifications_desc: "Otomatik toplama işlemleri için masaüstü bildirimleri göster."
+        notifications_desc: "Otomatik toplama işlemleri için masaüstü bildirimleri göster.",
+        check_new_games: "Başlangıçta Yeni Oyunları Kontrol Et",
+        check_new_games_desc: "Uygulama başladığında yeni ücretsiz oyunları kontrol et ve bildirim göster (otomatik toplamaz)."
     },
     de: {
         app_title: "Steam Gratis Spiele",

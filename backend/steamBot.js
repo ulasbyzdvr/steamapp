@@ -3,15 +3,54 @@ const fs = require('fs');
 const path = require('path');
 
 const COOKIES_PATH = path.join(__dirname, 'cookies.json');
+const USER_DATA_PATH = path.join(__dirname, 'user-data.json');
 
 class SteamBot {
-    constructor() {
+    constructor(silent = false) {
         this.browser = null;
         this.page = null;
         this.loginStatus = 'idle'; // idle, waiting_for_user, logged_in, failed
         this.isAborted = false;
         this.cachedUsername = null; // Cache for username to avoid repeated fetches
         this.cachedAvatarUrl = null; // Cache for avatar URL
+        this.silent = silent; // Sessiz mod - console.log'ları gizle
+
+        // Kullanıcı bilgilerini yükle
+        this.loadUserData();
+    }
+
+    // Log fonksiyonu - silent mode'da çalışmaz
+    log(message) {
+        if (!this.silent) {
+            console.log(message);
+        }
+    }
+
+    // Kullanıcı bilgilerini yükle
+    loadUserData() {
+        try {
+            if (fs.existsSync(USER_DATA_PATH)) {
+                const data = JSON.parse(fs.readFileSync(USER_DATA_PATH, 'utf-8'));
+                this.cachedUsername = data.username || null;
+                this.log('[loadUserData] User data loaded: ' + this.cachedUsername);
+            }
+        } catch (e) {
+            this.log('[loadUserData] Error loading user data: ' + e.message);
+        }
+    }
+
+    // Kullanıcı bilgilerini kaydet
+    saveUserData() {
+        try {
+            const data = {
+                username: this.cachedUsername,
+                lastUpdated: new Date().toISOString()
+            };
+            fs.writeFileSync(USER_DATA_PATH, JSON.stringify(data, null, 2));
+            this.log('[saveUserData] User data saved: ' + this.cachedUsername);
+        } catch (e) {
+            console.error('[saveUserData] Error saving user data: ' + e.message);
+        }
     }
 
     getLoginStatus() {
@@ -21,20 +60,38 @@ class SteamBot {
     checkLoginSimple() {
         // Fast check: just verify cookies file exists
         if (!fs.existsSync(COOKIES_PATH)) {
-            console.log('[checkLoginSimple] Cookies file NOT found:', COOKIES_PATH);
+            this.log('[checkLoginSimple] Cookies file NOT found: ' + COOKIES_PATH);
             return false;
         }
         try {
             const cookiesJson = fs.readFileSync(COOKIES_PATH, 'utf-8');
             const cookies = JSON.parse(cookiesJson);
-            console.log('[checkLoginSimple] Cookies loaded, count:', cookies.length);
+            this.log('[checkLoginSimple] Cookies loaded, count: ' + cookies.length);
 
             const steamLoginCookie = cookies.find(c =>
                 c.name === 'steamLoginSecure' || c.name === 'steamlogin'
             );
 
             if (steamLoginCookie) {
-                console.log('[checkLoginSimple] Steam login cookie FOUND!');
+                // Check if cookie is expired
+                if (steamLoginCookie.expires || steamLoginCookie.expirationDate) {
+                    const expiryTime = (steamLoginCookie.expires || steamLoginCookie.expirationDate) * 1000;
+                    const now = Date.now();
+
+                    if (expiryTime < now) {
+                        console.log('[checkLoginSimple] Steam login cookie EXPIRED. Expiry:', new Date(expiryTime));
+                        // Delete expired cookies
+                        try {
+                            fs.unlinkSync(COOKIES_PATH);
+                            this.log('[checkLoginSimple] Expired cookies deleted.');
+                        } catch (e) {
+                            console.error('[checkLoginSimple] Error deleting expired cookies:', e.message);
+                        }
+                        return false;
+                    }
+                }
+
+                this.log('[checkLoginSimple] Steam login cookie FOUND and VALID!');
                 return true;
             } else {
                 console.log('[checkLoginSimple] Steam login cookie NOT FOUND. Available cookies:',
@@ -56,7 +113,7 @@ class SteamBot {
         }
 
         if (!this.browser) {
-            console.log(`Launching browser(Headless: ${headless})...`);
+            this.log(`Launching browser(Headless: ${headless})...`);
             this.browser = await puppeteer.launch({
                 headless: headless ? "new" : false,
                 defaultViewport: null,
@@ -108,26 +165,26 @@ class SteamBot {
 
     async login() {
         this.loginStatus = 'waiting_for_user';
-        console.log('Starting login flow...');
+        this.log('Starting login flow...');
 
         // Giriş için arayüz şart (Headless: false)
         await this.restartBrowser(false);
 
         try {
             await this.page.goto('https://store.steampowered.com/login/', { waitUntil: 'networkidle2' });
-            console.log('Login page opened. Waiting for user to login...');
+            this.log('Login page opened. Waiting for user to login...');
 
             // Kullanıcının giriş yapmasını bekle (account_pulldown elementi görünene kadar)
             // 5 dakika süre tanıyalım
             await this.page.waitForSelector('#account_pulldown', { timeout: 300000 });
-            console.log('User logged in successfully!');
+            this.log('User logged in successfully!');
             this.loginStatus = 'logged_in';
 
             // Cookie'leri kaydet
             await this.saveCookies();
 
             // Tarayıcıyı kapatıp hemen arka plan moduna (headless) geri dön
-            console.log('Switching back to background mode...');
+            this.log('Switching back to background mode...');
             await this.restartBrowser(true);
 
         } catch (error) {
@@ -192,14 +249,25 @@ class SteamBot {
             console.log('Verified: Cookies file successfully deleted.');
         }
 
+        // 5. Delete user data file
+        if (fs.existsSync(USER_DATA_PATH)) {
+            try {
+                fs.unlinkSync(USER_DATA_PATH);
+                console.log('User data file deleted.');
+            } catch (error) {
+                console.error('Error deleting user data file:', error);
+            }
+        }
+
         console.log('Logged out successfully. Browser will restart on next action.');
     }
 
+
     async getSteamUsername() {
         // Return cached data if available
-        if (this.cachedUsername && this.cachedAvatarUrl) {
-            console.log('[getSteamUsername] Returning cached data:', { username: this.cachedUsername });
-            return { username: this.cachedUsername, avatarUrl: this.cachedAvatarUrl };
+        if (this.cachedUsername) {
+            this.log('[getSteamUsername] Returning cached data: ' + this.cachedUsername);
+            return { username: this.cachedUsername };
         }
 
         try {
@@ -213,10 +281,9 @@ class SteamBot {
                 timeout: 10000
             });
 
-            // Extract username and avatar
+            // Extract username only
             const data = await this.page.evaluate(() => {
                 let username = null;
-                let avatarUrl = null;
 
                 // Try account page username
                 const accountName = document.querySelector('.account_name');
@@ -228,31 +295,23 @@ class SteamBot {
                     if (headerName) username = headerName.textContent.trim();
                 }
 
-                // Avatar extraction (multiple potential selectors)
-                const avatarImg = document.querySelector('.playerAvatar img') ||
-                    document.querySelector('.user_avatar') ||
-                    document.querySelector('.avatarIcon');
-
-                if (avatarImg) {
-                    avatarUrl = avatarImg.src;
-                }
-
-                return { username, avatarUrl };
+                return { username };
             });
 
             const finalUsername = data.username || 'Steam User';
-            const finalAvatarUrl = data.avatarUrl || null;
 
-            // Cache the data
+            // Cache the username
             this.cachedUsername = finalUsername;
-            this.cachedAvatarUrl = finalAvatarUrl;
 
-            console.log('[getSteamUsername] Data fetched and cached:', { username: finalUsername, avatar: !!finalAvatarUrl });
+            // Kullanıcı bilgilerini kalıcı olarak kaydet
+            this.saveUserData();
 
-            return { username: finalUsername, avatarUrl: finalAvatarUrl };
+            this.log('[getSteamUsername] Data fetched and cached: ' + finalUsername);
+
+            return { username: finalUsername };
         } catch (e) {
             console.error('Get username error:', e.message);
-            return { username: 'Steam User', avatarUrl: null };
+            return { username: 'Steam User' };
         }
     }
 
@@ -298,7 +357,7 @@ class SteamBot {
                 await this.init(true);
             } else {
                 // Reload cookies from Electron
-                console.log('[getOwnedGameTitles] Reloading cookies...');
+                this.log('[getOwnedGameTitles] Reloading cookies...');
                 if (fs.existsSync(COOKIES_PATH)) {
                     try {
                         const cookiesJson = fs.readFileSync(COOKIES_PATH, 'utf-8');
@@ -315,14 +374,14 @@ class SteamBot {
                         }));
 
                         await this.page.setCookie(...puppeteerCookies);
-                        console.log('[getOwnedGameTitles] Cookies loaded:', cookies.length);
+                        this.log('[getOwnedGameTitles] Cookies loaded: ' + cookies.length);
                     } catch (e) {
                         console.error('[getOwnedGameTitles] Cookie error:', e.message);
                     }
                 }
             }
 
-            console.log('Fetching user library (Userdata API)...');
+            this.log('Fetching user library (Userdata API)...');
             try {
                 await this.page.goto('https://store.steampowered.com/dynamicstore/userdata/', {
                     waitUntil: 'domcontentloaded',
@@ -337,13 +396,13 @@ class SteamBot {
 
                 if (userData && userData.rgOwnedApps) {
                     library.ids = userData.rgOwnedApps;
-                    console.log(`✅ Userdata API: ${library.ids.length} AppIDs found.`);
+                    this.log(`✅ Userdata API: ${library.ids.length} AppIDs found.`);
                 }
             } catch (e) {
-                console.log('⚠️ Userdata API failed or timed out:', e.message);
+                this.log('⚠️ Userdata API failed or timed out: ' + e.message);
             }
 
-            console.log('Fetching game names from Licenses page...');
+            this.log('Fetching game names from Licenses page...');
             try {
                 await this.page.goto('https://store.steampowered.com/account/licenses/', {
                     waitUntil: 'domcontentloaded',
@@ -375,13 +434,13 @@ class SteamBot {
 
                 library.ids = [...new Set([...library.ids, ...licenseData.ids])];
                 library.names = licenseData.names;
-                console.log(`✅ Licenses page: ${licenseData.ids.length} AppIDs, ${licenseData.names.length} Titles found.`);
+                this.log(`✅ Licenses page: ${licenseData.ids.length} AppIDs, ${licenseData.names.length} Titles found.`);
             } catch (e) {
-                console.log('⚠️ Licenses page failed or timed out:', e.message);
-                console.log('Continuing with Userdata API results only...');
+                this.log('⚠️ Licenses page failed or timed out: ' + e.message);
+                this.log('Continuing with Userdata API results only...');
             }
 
-            console.log(`📚 Library summary: ${library.ids.length} AppIDs, ${library.names.length} Titles found.`);
+            this.log(`📚 Library summary: ${library.ids.length} AppIDs, ${library.names.length} Titles found.`);
             return library;
 
         } catch (error) {
@@ -395,6 +454,25 @@ class SteamBot {
 
         // Restart browser in headless mode for processing
         await this.restartBrowser(true);
+
+        // CRITICAL: Verify Steam login after browser restart
+        console.log('🔍 Verifying Steam login before claiming...');
+        const isLoggedIn = await this.checkLogin();
+
+        if (!isLoggedIn) {
+            console.error('❌ Steam login verification FAILED. Session might be expired.');
+            logCallback({
+                type: 'error',
+                message: 'Steam oturumu geçersiz. Lütfen çıkış yapıp tekrar giriş yapın.'
+            });
+            return [{
+                game: 'System Error',
+                status: 'error',
+                message: 'Steam session expired. Please logout and login again.'
+            }];
+        }
+
+        console.log('✅ Steam login verified successfully.');
 
         const results = [];
         const total = games.length;
