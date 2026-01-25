@@ -74,24 +74,26 @@ class SteamBot {
 
             if (steamLoginCookie) {
                 // Check if cookie is expired
-                if (steamLoginCookie.expires || steamLoginCookie.expirationDate) {
-                    const expiryTime = (steamLoginCookie.expires || steamLoginCookie.expirationDate) * 1000;
+                // Cookies are now normalized - they always have 'expires' field
+                if (steamLoginCookie.expires && steamLoginCookie.expires > 0) {
+                    const expiryTime = steamLoginCookie.expires * 1000; // Convert to milliseconds
                     const now = Date.now();
 
                     if (expiryTime < now) {
-                        console.log('[checkLoginSimple] Steam login cookie EXPIRED. Expiry:', new Date(expiryTime));
+                        console.log('[checkLoginSimple] ❌ Steam login cookie EXPIRED. Expiry:', new Date(expiryTime).toLocaleString());
                         // Delete expired cookies
                         try {
                             fs.unlinkSync(COOKIES_PATH);
-                            this.log('[checkLoginSimple] Expired cookies deleted.');
+                            fs.unlinkSync(USER_DATA_PATH); // Also delete user data
+                            this.log('[checkLoginSimple] Expired cookies and user data deleted.');
                         } catch (e) {
-                            console.error('[checkLoginSimple] Error deleting expired cookies:', e.message);
+                            console.error('[checkLoginSimple] Error deleting expired files:', e.message);
                         }
                         return false;
                     }
                 }
 
-                this.log('[checkLoginSimple] Steam login cookie FOUND and VALID!');
+                this.log('[checkLoginSimple] ✅ Steam login cookie FOUND and VALID!');
                 return true;
             } else {
                 console.log('[checkLoginSimple] Steam login cookie NOT FOUND. Available cookies:',
@@ -123,9 +125,23 @@ class SteamBot {
 
             if (fs.existsSync(COOKIES_PATH)) {
                 try {
-                    const cookies = JSON.parse(fs.readFileSync(COOKIES_PATH));
+                    const cookiesJson = fs.readFileSync(COOKIES_PATH, 'utf-8');
+                    const cookies = JSON.parse(cookiesJson);
+
+                    // Cookies are already in Puppeteer format (normalized when saved)
                     await this.page.setCookie(...cookies);
-                } catch (e) { console.error('Cookie load error:', e); }
+
+                    // Log loaded cookies
+                    const steamLoginCookie = cookies.find(c => c.name === 'steamLoginSecure');
+                    if (steamLoginCookie && steamLoginCookie.expires > 0) {
+                        const expiryDate = new Date(steamLoginCookie.expires * 1000);
+                        this.log(`[init] ✅ Loaded ${cookies.length} cookies. steamLoginSecure expires: ${expiryDate.toLocaleString()}`);
+                    } else {
+                        this.log(`[init] ✅ Loaded ${cookies.length} cookies.`);
+                    }
+                } catch (e) {
+                    console.error('[init] Cookie load error:', e.message);
+                }
             }
         }
     }
@@ -156,7 +172,15 @@ class SteamBot {
                 timeout: 20000
             });
             const url = this.page.url();
-            return !url.includes('login');
+            const isLoggedIn = !url.includes('login');
+
+            // Auto-refresh cookies after every login check
+            if (isLoggedIn) {
+                await this.saveCookies();
+                this.log('[checkLogin] ✅ Login verified, cookies refreshed');
+            }
+
+            return isLoggedIn;
         } catch (e) {
             console.error('CheckLogin error:', e.message);
             return false;
@@ -199,7 +223,35 @@ class SteamBot {
     async saveCookies() {
         if (this.page) {
             const cookies = await this.page.cookies();
-            fs.writeFileSync(COOKIES_PATH, JSON.stringify(cookies, null, 2));
+
+            // Normalize cookie format - ensure all cookies have proper expiry dates
+            const normalizedCookies = cookies.map(cookie => {
+                // Puppeteer uses 'expires' (Unix timestamp in seconds)
+                // Keep it consistent - always use 'expires' field
+                const normalized = {
+                    name: cookie.name,
+                    value: cookie.value,
+                    domain: cookie.domain,
+                    path: cookie.path || '/',
+                    expires: cookie.expires || -1, // -1 means session cookie
+                    httpOnly: cookie.httpOnly || false,
+                    secure: cookie.secure || false,
+                    sameSite: cookie.sameSite || 'Lax'
+                };
+
+                return normalized;
+            });
+
+            fs.writeFileSync(COOKIES_PATH, JSON.stringify(normalizedCookies, null, 2));
+
+            // Log cookie stats
+            const steamLoginCookie = normalizedCookies.find(c => c.name === 'steamLoginSecure');
+            if (steamLoginCookie && steamLoginCookie.expires > 0) {
+                const expiryDate = new Date(steamLoginCookie.expires * 1000);
+                console.log(`[saveCookies] ✅ Saved ${normalizedCookies.length} cookies. steamLoginSecure expires: ${expiryDate.toLocaleString()}`);
+            } else {
+                console.log(`[saveCookies] ✅ Saved ${normalizedCookies.length} cookies.`);
+            }
         }
     }
 
@@ -306,6 +358,9 @@ class SteamBot {
             // Kullanıcı bilgilerini kalıcı olarak kaydet
             this.saveUserData();
 
+            // Auto-refresh cookies after fetching username
+            await this.saveCookies();
+
             this.log('[getSteamUsername] Data fetched and cached: ' + finalUsername);
 
             return { username: finalUsername };
@@ -356,25 +411,17 @@ class SteamBot {
             if (!this.browser || !this.page) {
                 await this.init(true);
             } else {
-                // Reload cookies from Electron
+                // Reload cookies from file
                 this.log('[getOwnedGameTitles] Reloading cookies...');
                 if (fs.existsSync(COOKIES_PATH)) {
                     try {
                         const cookiesJson = fs.readFileSync(COOKIES_PATH, 'utf-8');
                         const cookies = JSON.parse(cookiesJson);
 
-                        const puppeteerCookies = cookies.map(c => ({
-                            name: c.name,
-                            value: c.value,
-                            domain: c.domain || '.steampowered.com',
-                            path: c.path || '/',
-                            expires: c.expirationDate || -1,
-                            httpOnly: c.httpOnly !== undefined ? c.httpOnly : false,
-                            secure: c.secure !== undefined ? c.secure : false
-                        }));
-
-                        await this.page.setCookie(...puppeteerCookies);
-                        this.log('[getOwnedGameTitles] Cookies loaded: ' + cookies.length);
+                        // Cookies are already in Puppeteer format (normalized when saved)
+                        // No need for format conversion
+                        await this.page.setCookie(...cookies);
+                        this.log(`[getOwnedGameTitles] ✅ Cookies loaded: ${cookies.length}`);
                     } catch (e) {
                         console.error('[getOwnedGameTitles] Cookie error:', e.message);
                     }
@@ -441,6 +488,11 @@ class SteamBot {
             }
 
             this.log(`📚 Library summary: ${library.ids.length} AppIDs, ${library.names.length} Titles found.`);
+
+            // Auto-refresh cookies after fetching library
+            await this.saveCookies();
+            this.log('[getOwnedGameTitles] ✅ Cookies refreshed');
+
             return library;
 
         } catch (error) {

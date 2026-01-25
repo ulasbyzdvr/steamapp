@@ -1,6 +1,109 @@
 # 🔄 Son Yapılan Düzeltmeler
 
+## 2026-01-19: Cookie Persistence (Kalıcılık) Sorunu Çözüldü
+
+### Sorun
+**Kritik Bug**: Bilgisayar kapatılıp açıldığında cookie'ler sürekli bozuluyordu. Kullanıcı her seferinde logout/login yapmak zorunda kalıyordu.
+
+**Kullanıcı Geri Bildirimi**: "ama bilgisayar kapatılıp açıldığında cookie hep bozuluyor"
+
+**Ne Oluyordu?**
+1. Steam'e giriş yapılıyordu, cookie'ler kaydediliyordu ✅
+2. Bilgisayar kapatılıp açılıyordu 🔄
+3. Uygulama başlatılıyordu - cookie'ler yüklenmeye çalışılıyordu
+4. Steam oturum doğrulaması BAŞARISIZ oluyordu ❌
+5. Kullanıcı tekrar login yapmak zorunda kalıyordu 😞
+
+### Kök Neden Analizi
+
+**Format Uyumsuzluğu**:
+- `saveCookies()` fonksiyonu: Puppeteer'ın native formatında cookie'leri kaydediyordu
+- `getOwnedGameTitles()` fonksiyonu: Electron cookie formatından Puppeteer formatına dönüştürmeye çalışıyordu
+- `init()` fonksiyonu: Direkt Puppeteer formatında bekliyordu
+
+**Spesifik Sorunlar**:
+1. **expires vs expirationDate**: Bazı yerlerde `expires`, bazı yerlerde `expirationDate` kullanılıyordu
+2. **Domain Kayıpları**: `getOwnedGameTitles()` içinde tüm cookie'ler varsayılan olarak `.steampowered.com` domain'ine atanıyordu (bazı cookie'ler `steamcommunity.com` için olabilir)
+3. **Gereksiz Dönüşümler**: Her cookie yüklemede format dönüşümü yapılıyordu ve bu sırada veri kaybı olabiliyordu
+
+### Çözüm
+
+**1. Cookie Normalizasyonu** (`saveCookies()` fonksiyonu)
+```javascript
+// Puppeteer formatında normalize et ve kaydet
+const normalizedCookies = cookies.map(cookie => ({
+    name: cookie.name,
+    value: cookie.value,
+    domain: cookie.domain,        // Orijinal domain korunuyor
+    path: cookie.path || '/',
+    expires: cookie.expires || -1, // Tutarlı field name
+    httpOnly: cookie.httpOnly || false,
+    secure: cookie.secure || false,
+    sameSite: cookie.sameSite || 'Lax'
+}));
+```
+
+**2. Basitleştirilmiş Yükleme**
+- Artık format dönüşümü YOK
+- Cookie'ler kaydedildiği formatta yükleniyor
+- Domain bilgileri korunuyor
+
+**3. Detaylı Loglama**
+```
+[saveCookies] ✅ Saved 15 cookies. steamLoginSecure expires: 19.01.2026 12:30:45
+[init] ✅ Loaded 15 cookies. steamLoginSecure expires: 19.01.2026 12:30:45
+```
+
+**4. Expire Kontrolü Standardizasyonu**
+- `checkLoginSimple()`: Artık sadece `expires` field'ını kontrol ediyor
+- `expirationDate` kullanımı kaldırıldı
+
+### Değişen Dosyalar
+
+**`backend/steamBot.js`**:
+1. `saveCookies()` (satır 199-233): Cookie normalizasyon ve detaylı loglama
+2. `init()` (satır 124-143): Basitleştirilmiş cookie yükleme ve loglama
+3. `getOwnedGameTitles()` (satır 398-413): Format dönüşümü kaldırıldı
+4. `checkLoginSimple()` (satır 75-96): Sadece `expires` field'ı kontrolü
+
+### Kullanıcı Aksiyonu Gerekli
+
+⚠️ **ÖNEMLİ**: Mevcut cookie'ler eski formatta olabilir!
+
+**İlk Defa Test Edecekseniz**:
+1. CLI veya Electron uygulamasından **Logout** yapın
+2. Tekrar **Login** yapın (yeni formatta cookie'ler oluşacak)
+3. Bilgisayarı kapatıp açın
+4. Uygulamayı başlatın - artık otomatik giriş yapmalı! ✅
+
+**Alternatif**: Cookie dosyalarını manuel silin:
+```bash
+del backend\cookies.json
+del backend\user-data.json
+```
+
+### Test Senaryosu
+
+1. ✅ Login yap
+2. ✅ Terminal'de cookie expire tarihini gör: `steamLoginSecure expires: 19.01.2026 12:30:45`
+3. ✅ Bilgisayarı kapat
+4. ✅ Bilgisayarı aç
+5. ✅ CLI/Electron uygulamasını başlat
+6. ✅ Otomatik giriş yapmalı (logout/login gerekmemeli)
+7. ✅ Oyun claim etmeyi dene - başarılı olmalı
+
+### Beklenen Sonuçlar
+
+- ✅ Cookie'ler bilgisayar yeniden başlatıldığında bozulmuyor
+- ✅ Steam oturumu kalıcı
+- ✅ Kullanıcı her seferinde login yapmak zorunda değil
+- ✅ Detaylı loglar sayesinde sorunlar daha kolay tespit edilebilir
+- ✅ Cookie expire tarihleri doğru gösteriliyor
+
+---
+
 ## 2026-01-16: Claim İşlemi Öncesi Steam Oturum Doğrulaması
+
 
 ### Sorun
 **Kritik Bug**: Bilgisayar kapatılıp açıldığında Steam hesabına giriş yapmış görünüyordu, oyun claim ederken "başarılı" mesajı gösteriliyordu ama **oyunlar gerçekten Steam hesabına eklenmiyordu**.

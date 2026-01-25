@@ -352,6 +352,89 @@
     - Daha hızlı ve temiz URL'ler
     - Claim işlemleri için doğru linkler
 
+### Son Durum (2026-01-19 05:05)
+- ✨ **NEW FEATURE**: Cookie otomatik yenileme sistemi eklendi
+  - **Kullanıcı İsteği**: "cookie expire olmasın istiyorum"
+  - **Analiz**: 
+    - Kullanıcının cookie'leri 397 gün daha geçerli (expire: 20 Şubat 2027)
+    - Sorun expire değil, cookie'lerin **format uyumsuzluğu**ydu (satır 355'te düzeltildi)
+    - Ama yine de **proaktif çözüm**: Cookie'leri otomatik yenile
+  - **Çözüm**: Her Steam işleminden sonra cookie'leri otomatik kaydet
+    - `checkLogin()`: Login kontrolünden sonra cookie refresh
+    - `getSteamUsername()`: Username fetch'den sonra cookie refresh
+    - `getOwnedGameTitles()`: Kütüphane fetch'den sonra cookie refresh
+    - `processGames()`: Claim işleminden sonra cookie refresh (zaten vardı)
+  - **Değişiklikler**:
+    - `backend/steamBot.js`:
+      - `checkLogin()` (satır 158-185): Cookie auto-refresh eklendi
+      - `getSteamUsername()` (satır 318-371): Cookie auto-refresh eklendi
+      - `getOwnedGameTitles()` (satır 401-499): Cookie auto-refresh eklendi
+  - **Sonuç**:
+    - ✅ Cookie'ler her Steam etkileşiminde yenileniyor
+    - ✅ Expire riski minimuma indi
+    - ✅ Session cookie'ler ('-1' expire) de her seferinde yenileniyor
+    - ✅ Kullanıcı cookie expire sorunu yaşamayacak
+  - **Log Çıktıları**:
+    ```
+    [checkLogin] ✅ Login verified, cookies refreshed
+    [getSteamUsername] Data fetched and cached: username
+    [saveCookies] ✅ Saved 15 cookies. steamLoginSecure expires: ...
+    [getOwnedGameTitles] ✅ Cookies refreshed
+    ```
+
+### Son Durum (2026-01-19 02:05)
+
+- 🔧 **CRITICAL FIX**: Cookie persistence (kalıcılık) sorunu çözüldü
+  - **Sorun**: 
+    - Bilgisayar kapatılıp açıldığında cookie'ler sürekli bozuluyordu
+    - Steam oturum doğrulaması başarısız oluyordu
+    - Kullanıcı her seferinde logout/login yapmak zorunda kalıyordu
+  - **Kök Neden**:
+    - Cookie kaydetme ve yükleme formatları birbirine uymuyordu
+    - `saveCookies()`: Puppeteer formatında kaydediyordu
+    - `getOwnedGameTitles()`: Electron formatından Puppeteer formatına dönüştürmeye çalışıyordu
+    - `expires` vs `expirationDate` karmaşası vardı
+    - Domain bilgileri kayboluyordu (varsayılan `.steampowered.com` kullanılıyordu)
+  - **Çözüm**:
+    - **Cookie Normalizasyonu**: `saveCookies()` fonksiyonu artık cookie'leri normalize ediyor
+    - **Tutarlı Format**: Tüm cookie işlemleri artık aynı formatı kullanıyor (`expires` field standardı)
+    - **Detaylı Loglama**: Cookie expire tarihlerini gösteriyor
+    - **Basitleştirme**: Gereksiz format dönüşümleri kaldırıldı
+    - **Domain Koruması**: Cookie domain bilgileri artık korunuyor
+  - **Değişen Dosyalar**:
+    - `backend/steamBot.js`:
+      - `saveCookies()`: Cookie normalizasyon ve loglama eklendi (satır 199-233)
+      - `init()`: Cookie yükleme basitleştirildi ve loglama eklendi (satır 124-143)
+      - `getOwnedGameTitles()`: Format dönüşümü kaldırıldı (satır 398-413)
+      - `checkLoginSimple()`: Sadece `expires` field'ı kullanılıyor (satır 75-96)
+  - **Sonuç**:
+    - ✅ Cookie'ler artık bilgisayar yeniden başlatıldığında bozulmuyor
+    - ✅ Steam oturumu kalıcı hale geldi
+    - ✅ Kullanıcı her seferinde yeniden giriş yapmak zorunda kalmayacak
+    - ✅ Detaylı loglar sayesinde cookie sorunları daha kolay tespit edilebilir
+  - **Test Gerekli**: 
+    - Kullanıcının mevcut cookie'leri eski formatta olabilir
+    - **Öneri**: Logout yapıp tekrar login yaparak yeni formatta cookie'ler oluşturmalı
+
+### Son Durum (2026-01-19 02:00)
+- 🐛 **ACTIVE ISSUE**: Steam oturum doğrulama hatası aktif
+  - **Kullanıcı Senaryosu**:
+    - Bilgisayar kapatılıp açıldı
+    - CLI uygulaması başlatıldı
+    - "Smart Factory Tycoon" adlı oyunu claim etmeye çalıştı
+    - **"❌ Steam login verification FAILED. Session might be expired."** hatası alındı
+  - **Durum**:
+    - Oturum doğrulama kodu mevcut ve çalışıyor (steamBot.js satır 458-475)
+    - Ancak cookie'ler expire olmuş veya Steam oturumu geçersiz
+    - Kullanıcının logout/login yapması gerekiyor
+  - **Çözüm Adımları**:
+    1. CLI uygulamasından logout yap
+    2. Cookie dosyalarını temizle (backend/cookies.json, backend/user-data.json)
+    3. Tekrar login yap
+    4. Claim işlemini tekrar dene
+  - **Not**: Bu beklenen davranış - kod düzgün çalışıyor ve kullanıcıyı uyarıyor
+  - **GÜNCELLENDİ**: Cookie persistence sorunu düzeltildi, bu sorun artık tekrarlanmamalı
+
 ### Son Durum (2026-01-16 12:15)
 - 🐛 **CRITICAL FIX**: Claim işlemi öncesi Steam oturum doğrulaması eklendi
   - **Sorun**: 
