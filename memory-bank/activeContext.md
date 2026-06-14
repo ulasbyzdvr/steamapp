@@ -455,5 +455,30 @@
     - ✅ Artık her claim işlemi öncesi oturum doğrulanıyor
     - ✅ Yanlış "başarılı" mesajları önleniyor
     - ✅ Kullanıcı oturum geçersizse hemen bilgilendiriliyor
-    - ✅ CLI, Electron ve tüm uygulamalar bu düzeltmeden yararlanıyor
 
+### Son Durum (2026-02-12 04:25)
+- 🐛 **FIX**: Claim işlemi sonrası doğrulama logic'i güçlendirildi
+  - **Sorun**: Kullanıcı "giriş başarılı, claim başarılı" mesajı almasına rağmen oyunun kütüphaneye eklenmediğini bildirdi.
+  - **Kök Neden**: `steamBot.js` claim butonuna tıkladıktan sonra sadece 2 saniye bekleyip başarı varsayıyordu. Butonun "Sepete Ekle" olması veya işlemin başarısız olması durumunda bile "Başarılı" dönüyordu.
+  - **Çözüm**:
+    - Claim butonuna tıklandıktan sonra aktif doğrulama eklendi.
+    - 10 saniye boyunca "Owned" flag'i, "Play Game" butonu veya başarı mesajı bekleniyor.
+    - Eğer doğrulama başarısız olursa ve sayfa sepete yönlendirilmişse "Sepete Eklendi" hatası veriliyor.
+    - Doğrulama tamamen başarısızsa hata döndürülüyor.
+
+### Son Durum (2026-02-12 04:35)
+- 🔧 **DEBUG**: Claim hatası analizi için detaylı loglama ve ekran görüntüsü alma eklendi
+  - **Sorun**: "Lost in Anomaly" gibi oyunlarda doğrulama başarısız oluyor (`10000ms exceeded`).
+  - **Aksiyon**:
+    - Claim butonuna tıklamadan önce buton metni loglanıyor (`[Claim] Clicking button: ...`).
+    - Doğrulama başarısız olursa otomatik ekran görüntüsü alınıyor.
+    - Ekran görüntüleri `debug_screenshots` klasörüne kaydediliyor.
+
+### Son Durum (2026-02-12 04:47)
+- 👁️ **GÖRÜNÜRLÜK**: Headless Mod tekrar açıldı.
+  - **Sebep**: Kullanıcı claim sürecini test ettikten sonra arka planda çalışmasını istedi.
+  - **Değişiklik**: `init(headless = true)` varsayılan hale getirildi.
+  - **Sorun**: Bazı F2P oyunlar ve Demolar (Örn: Lost in Anomaly) claim edildiğinde sayfa yenilenmiyor, bunun yerine "Steam yüklü mü?" popup'ı çıkıyordu. Bu durum doğrulama hatası (`Verification failed`) veriyordu.
+  - **Önemli Gelişme**: Bot artık öncelikle sayfa içinde **"Kütüphaneye Ekle"** veya **"Add to Library"** yazan butonu arıyor.
+  - **Sebep**: Kullanıcı geri bildirimine göre, F2P oyunlarda "Oyna/İndir" butonu yerine doğrudan kütüphaneye ekleme butonu kullanılması daha temiz bir işlem sağlıyor ve popup ile uğraşmayı engelliyor.
+  - **Yedek Plan**: Eğer bu buton bulunamazsa eski yöntem (Play Game -> Popup -> Yes) devreye giriyor.

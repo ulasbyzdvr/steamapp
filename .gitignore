@@ -1,2 +1,23 @@
-node_modules
-dist
+# Dependency directories
+node_modules/
+
+# Local/build outputs
+dist/
+
+# Logs and screenshots
+logs/
+*.log
+debug_screenshots/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Sensitive credentials & session data
+backend/cookies.json
+backend/user-data.json
+backend/.env
+
+# Local settings
+cli/config.json
+cli/language.json

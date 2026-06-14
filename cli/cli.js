@@ -82,12 +82,17 @@ class SteamCLI {
         try {
             if (fs.existsSync(CONFIG_FILE)) {
                 const data = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
-                return data;
+                // Varsayılan ayarlarla birleştir
+                return {
+                    checkNewGames: false,
+                    autoClaim: false,
+                    ...data
+                };
             }
         } catch (e) {
             console.error('[ERROR] Config load error:', e.message);
         }
-        return { checkNewGames: false }; // Varsayılan ayarlar
+        return { checkNewGames: false, autoClaim: false }; // Varsayılan ayarlar
     }
 
     // Config kaydet
@@ -487,7 +492,7 @@ class SteamCLI {
     }
 
     // Tüm ücretsiz oyunları talep et
-    async claimAllFreeGames() {
+    async claimAllFreeGames(auto = false) {
         console.clear();
         this.header(this.t.claimAll.title);
 
@@ -525,12 +530,17 @@ class SteamCLI {
         }
 
         this.warning(`${gamesToClaim.length} ${this.t.claimAll.newGames}`);
-        const confirm = await this.question(this.t.claimAll.confirm + ' ');
 
-        if (confirm.toLowerCase() !== 'e' && confirm.toLowerCase() !== 'y') {
-            this.info(this.t.claim.cancelled);
-            await this.pause();
-            return;
+        if (!auto) {
+            const confirm = await this.question(this.t.claimAll.confirm + ' ');
+
+            if (confirm.toLowerCase() !== 'e' && confirm.toLowerCase() !== 'y') {
+                this.info(this.t.claim.cancelled);
+                await this.pause();
+                return;
+            }
+        } else {
+            this.info('Otomatik toplama modu aktif. Onay beklenmiyor...');
         }
 
         console.log('');
@@ -553,7 +563,13 @@ class SteamCLI {
             }
         });
 
-        await this.pause();
+        if (!auto) {
+            await this.pause();
+        } else {
+            console.log('');
+            this.success('Otomatik toplama tamamlandı. Menüye dönülüyor...');
+            await new Promise(r => setTimeout(r, 2000));
+        }
     }
 
     // Ayarlar
@@ -570,15 +586,22 @@ class SteamCLI {
             `${colors.green}✓ Aktif${colors.reset}` :
             `${colors.red}✗ Kapalı${colors.reset}`;
 
+        const autoClaimStatus = this.config.autoClaim ?
+            `${colors.green}✓ Aktif${colors.reset}` :
+            `${colors.red}✗ Kapalı${colors.reset}`;
+
         console.log(`${colors.bright}Dil / Language:${colors.reset} ${colors.green}${langNames[this.lang]}${colors.reset}`);
-        console.log(`${colors.bright}Başlangıçta Yeni Oyun Kontrolü:${colors.reset} ${checkNewGamesStatus}\n`);
+        console.log(`${colors.bright}Başlangıçta Yeni Oyun Kontrolü:${colors.reset} ${checkNewGamesStatus}`);
+        console.log(`${colors.bright}Başlangıçta Otomatik Topla:${colors.reset} ${autoClaimStatus}\n`);
 
         console.log(colors.bright + '═'.repeat(50) + colors.reset);
         console.log(`${colors.yellow}1.${colors.reset} Türkçe`);
         console.log(`${colors.yellow}2.${colors.reset} English`);
         console.log(`${colors.yellow}3.${colors.reset} ${this.lang === 'tr' ? 'Başlangıçta Yeni Oyun Kontrolü' : 'Check New Games on Startup'} [${this.config.checkNewGames ? 'ON' : 'OFF'}]`);
+        console.log(`${colors.yellow}4.${colors.reset} ${this.lang === 'tr' ? 'Başlangıçta Otomatik Topla' : 'Auto Claim on Startup'} [${this.config.autoClaim ? 'ON' : 'OFF'}]`);
         console.log(`${colors.yellow}0.${colors.reset} Geri Dön / Go Back`);
         console.log(colors.bright + '═'.repeat(50) + colors.reset + '\n');
+
 
         const choice = await this.question('Seçiminiz / Your choice: ');
         const trimmedChoice = choice.trim();
@@ -590,11 +613,28 @@ class SteamCLI {
         if (trimmedChoice === '3') {
             // Toggle check new games
             this.config.checkNewGames = !this.config.checkNewGames;
+            // Auto claim check new games ile çakışmasın diye kapatılabilir veya bağımsız bırakılabilir
+            // Şimdilik bağımsız
             if (this.saveConfig()) {
                 const status = this.config.checkNewGames ?
                     (this.lang === 'tr' ? 'Açıldı' : 'Enabled') :
                     (this.lang === 'tr' ? 'Kapatıldı' : 'Disabled');
                 this.success(`${this.lang === 'tr' ? 'Başlangıçta Yeni Oyun Kontrolü' : 'Check New Games on Startup'}: ${status}`);
+            } else {
+                this.error(this.lang === 'tr' ? 'Ayar kaydedilemedi!' : 'Setting could not be saved!');
+            }
+            await this.pause();
+            return this.showSettings();
+        }
+
+        if (trimmedChoice === '4') {
+            // Toggle auto claim
+            this.config.autoClaim = !this.config.autoClaim;
+            if (this.saveConfig()) {
+                const status = this.config.autoClaim ?
+                    (this.lang === 'tr' ? 'Açıldı' : 'Enabled') :
+                    (this.lang === 'tr' ? 'Kapatıldı' : 'Disabled');
+                this.success(`${this.lang === 'tr' ? 'Başlangıçta Otomatik Topla' : 'Auto Claim on Startup'}: ${status}`);
             } else {
                 this.error(this.lang === 'tr' ? 'Ayar kaydedilemedi!' : 'Setting could not be saved!');
             }
@@ -718,8 +758,12 @@ class SteamCLI {
             } else {
                 this.info(this.lang === 'tr' ? 'Yeni ücretsiz oyun yok.' : 'No new free games.');
             }
+
+            // Kullanıcının sonucu görmesi için bekle
+            await this.pause();
         } catch (error) {
             console.error('[Check New Games] Error:', error.message);
+            await this.pause();
         }
     }
 
@@ -756,8 +800,13 @@ class SteamCLI {
             if (this.isLoggedIn) {
                 this.success(this.t.general.autoLoginSuccess + '\n');
 
-                // Yeni oyun kontrolü yap
-                await this.checkNewGames();
+                if (this.config.autoClaim) {
+                    this.info(this.lang === 'tr' ? 'Otomatik toplama başlatılıyor...' : 'Starting auto-claim routine...');
+                    await this.claimAllFreeGames(true);
+                } else if (this.config.checkNewGames) {
+                    // Yeni oyun kontrolü yap (sadece autoClaim kapalıysa)
+                    await this.checkNewGames();
+                }
             } else {
                 this.warning(this.t.general.notLoggedIn + '\n');
             }

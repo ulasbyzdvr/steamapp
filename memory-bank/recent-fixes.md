@@ -1,5 +1,128 @@
 # 🔄 Son Yapılan Düzeltmeler
 
+## 2026-01-30: KRITIK - steamLoginSecure Cookie'si Kaydedilmiyordu! 🔥
+
+### Sorun
+**KÖK NEDEN BULUNDU**: Kullanıcılar sürekli "Steam login verification FAILED. Session might be expired." hatası alıyordu. 
+
+**Gerçek Sorun Ne?**
+- Cookie dosyasında `steamLoginSecure` cookie'si **hiç yoktu**!
+- `saveCookies()` fonksiyonu sadece `store.steampowered.com` domain'inden cookie topluyordu
+- Ama `steamLoginSecure` cookie'si **`.steamcommunity.com`** veya **`.steampowered.com`** (nokta ile başlayan, tüm subdomain'leri kapsayan) domain'inde saklanıyor
+- Bu yüzden cookie dosyasına hiç kaydedilmiyordu
+
+**Mevcut cookies.json İçeriği:**
+```json
+[
+  {"name": "app_impressions", "domain": "store.steampowered.com"},
+  {"name": "sessionid", "domain": "store.steampowered.com"},
+  {"name": "browserid", "domain": "store.steampowered.com"}
+  // steamLoginSecure YOK! ❌
+]
+```
+
+### Çözüm
+
+**1. Tüm Steam Domain'lerinden Cookie Toplama**
+
+`saveCookies()` fonksiyonu artık **4 farklı Steam domain'inden** cookie topluyor:
+
+```javascript
+const allCookies = await this.page.cookies(
+    'https://store.steampowered.com',
+    'https://steamcommunity.com',      // ← YENİ!
+    'https://help.steampowered.com',   // ← YENİ!
+    'https://login.steampowered.com'   // ← YENİ!
+);
+```
+
+**2. Detaylı Debug Logları**
+
+Artık her cookie işleminde detaylı bilgi gösteriliyor:
+
+```
+[saveCookies] 📂 Collecting cookies from all Steam domains...
+[saveCookies] 📊 Total cookies found: 15
+[saveCookies] 📋 Cookie names: steamLoginSecure, sessionid, browserid, ...
+[saveCookies] 🔑 Found login cookie: steamLoginSecure
+[saveCookies] 🌐 Domain: .steamcommunity.com
+[saveCookies] ⏰ Expires: 30.01.2027 17:56:24
+[saveCookies] ✅ Saved 15 cookies successfully!
+```
+
+**3. Uyarı Sistemi**
+
+Eğer `steamLoginSecure` cookie'si bulunamazsa:
+```
+[saveCookies] ⚠️ WARNING: No steamLoginSecure cookie found!
+[saveCookies] ⚠️ Login might not persist. Please complete login fully.
+```
+
+**4. Geliştirilmiş checkLoginSimple()**
+
+```
+[checkLoginSimple] 📂 Cookies loaded, count: 15
+[checkLoginSimple] 📋 Available cookies: steamLoginSecure, sessionid, ...
+[checkLoginSimple] 🔑 Found login cookie: steamLoginSecure
+[checkLoginSimple] 🌐 Cookie domain: .steamcommunity.com
+[checkLoginSimple] ⏰ Cookie expires: 30.01.2027 17:56:24
+[checkLoginSimple] 🕐 Current time: 30.01.2026 17:56:24
+[checkLoginSimple] ✅ Steam login cookie FOUND and VALID!
+```
+
+### Değişen Dosyalar
+
+**`backend/steamBot.js`**:
+1. `saveCookies()` (satır 223-256): Tüm Steam domain'lerinden cookie toplama + detaylı log
+2. `init()` (satır 109-147): Cookie yükleme sırasında detaylı debug log
+3. `checkLoginSimple()` (satır 60-107): Geliştirilmiş debug ve uyarı mesajları
+
+### Kullanıcı Aksiyonu - ÇOK ÖNEMLİ! ⚠️
+
+**Mevcut cookie'ler eksik! Şunları yapmalısınız:**
+
+1. **Logout yapın** (eski, eksik cookie'leri temizlemek için)
+2. **Login yapın** (yeni, tam cookie'leri kaydetmek için)
+3. **Terminalde şu mesajları görmelisiniz:**
+   ```
+   [saveCookies] 🔑 Found login cookie: steamLoginSecure
+   [saveCookies] ✅ Saved 15 cookies successfully!
+   ```
+4. **Bilgisayarı kapatıp açın**
+5. **Uygulamayı başlatın** - artık otomatik giriş yapmalı!
+
+**Alternatif (Hızlı Test):**
+```bash
+# Eski cookie'leri sil
+del backend\cookies.json
+del backend\user-data.json
+
+# Uygulamayı başlat ve login yap
+npm run cli
+```
+
+### Test Senaryosu
+
+1. ✅ Logout yap
+2. ✅ Login yap
+3. ✅ Terminal'de `steamLoginSecure` cookie'sinin kaydedildiğini gör
+4. ✅ Uygulamayı kapat
+5. ✅ Bilgisayarı kapat
+6. ✅ Bilgisayarı aç
+7. ✅ Uygulamayı başlat
+8. ✅ Otomatik giriş yapmalı (steamLoginSecure cookie bulunmalı)
+9. ✅ Oyun claim et - başarılı olmalı
+
+### Beklenen Sonuçlar
+
+- ✅ `steamLoginSecure` cookie'si artık kaydediliyor
+- ✅ Cookie'ler bilgisayar yeniden başlatıldığında bozulmuyor
+- ✅ Steam oturumu kalıcı
+- ✅ "Session expired" hatası artık olmamalı
+- ✅ Detaylı loglar sayesinde sorunlar anında görülebilir
+
+---
+
 ## 2026-01-19: Cookie Persistence (Kalıcılık) Sorunu Çözüldü
 
 ### Sorun
@@ -410,5 +533,62 @@ CLI uygulamasında yeni oyun kontrolü şu şekilde çalışır:
 
 ℹ Listeyi görmek için menüden "Ücretsiz Oyunları Listele" seçin.
 ```
+
+---
+
+## 2026-02-12: Claim Başarılı Ancak Oyun Kütüphanede Yok Sorunu
+
+### Sorun
+**Kritik Bug**: Kullanıcı "giriş başarılı, claim başarılı" mesajlarını görüyor ancak oyunlar Steam kütüphanesine gerçekten eklenmiyordu.
+
+**Kök Neden**:
+1. `processGames` fonksiyonu "Add to Account" butonuna tıkladıktan sonra işlem sonucunu doğrulamadan sadece 2 saniye bekleyip "Başarılı" kabul ediyordu.
+2. İşlem başarısız olsa, sepete ekle olsa veya hata verse bile kod bunu fark etmeyip başarı raporluyordu.
+3. Özellikle "Add to Cart" butonları ve bazı "Free to Play" akışları bu false-positive durumuna düşüyordu.
+
+### Çözüm
+
+**Dosya**: `backend/steamBot.js` (processGames fonksiyonu)
+
+**Eklenen Özellik**: Claim sonrası aktif doğrulama (Active Verification) eklendi:
+
+```javascript
+// Verification: Wait for success indicators
+try {
+    // Wait up to 10 seconds for the UI to update to "Owned" or "Play Game"
+    await this.page.waitForFunction(() => {
+        // Check for "Owned" flag
+        const ownedFlag = ...; 
+        const isOwnedVisible = ...;
+        
+        // Check for "Play Game" button (indicates ownership)
+        const hasPlayButton = ...; 
+        
+        // Check for specific success message text
+        const successText = ...; 
+
+        return isOwnedVisible || hasPlayButton || successText;
+    }, { timeout: 10000 });
+
+    // ... Success processing
+} catch (e) {
+    // ... Error processing & Cart check
+}
+```
+
+**Ne Değişti?**
+1. **Aktif Doğrulama**: Butona tıklandıktan sonra körü körüne başarı dönmüyor, sayfanın "Owned" (Sahiplik) durumuna geçmesini bekliyor.
+2. **Sepet Kontrolü**: Eğer oyun kütüphane yerine sepete eklendiyse (bazı oyunlar direkt claim edilemez), bu durum algılanıyor ve "Sepete Eklendi" uyarısı veriliyor.
+3. **Zaman Aşımı**: 10 saniye içinde doğrulama gerçekleşmezse işlem başarısız sayılıyor.
+
+### Etkilenen Senaryolar
+- ✅ **Yalancı Başarılar**: Artık oyun kütüphaneye girmezse "Başarılı" denmeyecek.
+- ✅ **Sepete Düşenler**: Sepete eklenen oyunlar artık "Başarısız/Hata" olarak raporlanıp sepete eklendiği belirtilecek.
+- ✅ **Ağ Hataları**: Claim sırasında internet koparsa doğrulama timeout olacak ve hata raporlanacak.
+
+### Test Adımları
+1. Henüz sahip olmadığınız ücretsiz bir oyun deneyin.
+2. Loglarda "Claimed successfully & Verified" mesajını görmelisiniz.
+3. Steam kütüphanenizi kontrol edin, oyunun orada olduğundan emin olun.
 
 

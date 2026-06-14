@@ -3,6 +3,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const API_KEY = process.env.ITAD_API_KEY;
+const COUNTRY = process.env.ITAD_COUNTRY || 'TR';
 const BASE_URL = 'https://api.isthereanydeal.com';
 
 async function getGameInfo(gameId) {
@@ -36,7 +37,8 @@ async function getFreeSteamGames() {
                 key: API_KEY,
                 shops: '61', // Steam
                 sort: '-cut', // En yüksek indirim
-                limit: 50
+                limit: 50,
+                country: COUNTRY
             }
         });
 

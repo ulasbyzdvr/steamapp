@@ -1,94 +1,14 @@
 {
-    "name": "steam-free-games",
-    "version": "1.0.0",
-    "description": "Steam ucretsiz oyunlari otomatik takip ve ekleme uygulamasi",
-    "main": "electron/main.js",
-    "author": "SteamFreeGames",
-    "license": "MIT",
-    "scripts": {
-        "dev": "npx concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
-        "dev:vite": "cd frontend && npm run dev",
-        "dev:electron": "npx wait-on http://localhost:5173 && npx electron .",
-        "build": "cd frontend && npm run build",
-        "build:win": "npm run build && npx electron-builder --win",
-        "build:portable": "npm run build && npx electron-builder --win portable",
-        "build:installer": "npm run build && npx electron-builder --win nsis",
-        "package": "npm run build && npx electron-packager . \"Steam Free Games\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=electron/icon.ico --prune=true",
-        "start": "npx electron .",
-        "start:prod": "set NODE_ENV=production&& npx electron ."
-    },
-    "build": {
-        "appId": "com.steamfreegames.app",
-        "productName": "Steam Free Games",
-        "copyright": "Copyright © 2025 SteamFreeGames",
-        "directories": {
-            "output": "dist",
-            "buildResources": "electron"
-        },
-        "files": [
-            "electron/**/*",
-            "frontend/dist/**/*",
-            "backend/**/*",
-            "!**/*.map",
-            "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
-            "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
-            "!**/node_modules/*.d.ts",
-            "!**/node_modules/.bin",
-            "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
-            "!.editorconfig",
-            "!**/._*",
-            "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
-            "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
-            "!**/{appveyor.yml,.travis.yml,circle.yml}",
-            "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
-        ],
-        "win": {
-            "target": [
-                {
-                    "target": "nsis",
-                    "arch": [
-                        "x64"
-                    ]
-                },
-                {
-                    "target": "portable",
-                    "arch": [
-                        "x64"
-                    ]
-                }
-            ],
-            "icon": "electron/icon.ico",
-            "artifactName": "${productName}-${version}-Setup.${ext}"
-        },
-        "nsis": {
-            "oneClick": false,
-            "allowToChangeInstallationDirectory": true,
-            "allowElevation": true,
-            "createDesktopShortcut": true,
-            "createStartMenuShortcut": true,
-            "shortcutName": "Steam Free Games",
-            "installerIcon": "electron/icon.ico",
-            "uninstallerIcon": "electron/icon.ico",
-            "installerHeaderIcon": "electron/icon.ico",
-            "deleteAppDataOnUninstall": false,
-            "runAfterFinish": true,
-            "menuCategory": true,
-            "language": "1055"
-        },
-        "portable": {
-            "artifactName": "${productName}-${version}-Portable.${ext}"
-        }
-    },
-    "dependencies": {
-        "concurrently": "^8.2.2",
-        "cors": "^2.8.5",
-        "dotenv": "^17.2.3",
-        "express": "^5.2.1",
-        "wait-on": "^7.2.0"
-    },
-    "devDependencies": {
-        "electron": "^28.0.0",
-        "electron-builder": "^26.0.12",
-        "electron-packager": "^17.1.2"
-    }
+  "name": "steam-free-games",
+  "version": "1.0.0",
+  "description": "Steam ucretsiz oyunlari otomatik takip ve ekleme uygulamasi",
+  "main": "cli/cli.js",
+  "scripts": {
+    "start": "node cli/cli.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  }
 }
